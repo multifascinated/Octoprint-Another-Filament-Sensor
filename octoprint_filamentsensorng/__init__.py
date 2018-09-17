@@ -139,11 +139,11 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
             GPIO.remove_event_detect(self.pin)
 
     @octoprint.plugin.BlueprintPlugin.route("/status", methods=["GET"])
-	def check_status(self):
-		status = "-1"
-		if self.pin != -1:
-			status = str(self.no_filament())
-		return jsonify( status = status )
+    def check_status(self):
+        status = "-1"
+        if self.pin != -1:
+            status = str(self.no_filament())
+        return jsonify( status = status )
 
     def sensor_callback(self, _):
         sleep(self.bounce/1000)
