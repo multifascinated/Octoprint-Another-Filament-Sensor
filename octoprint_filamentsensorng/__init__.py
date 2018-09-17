@@ -1,5 +1,6 @@
 # coding=utf-8
 from __future__ import absolute_import
+from flask import jsonify
 
 import octoprint.plugin
 from octoprint.events import Events
@@ -19,6 +20,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         if GPIO.VERSION < "0.6":       # Need at least 0.6 for edge detection
             raise Exception("RPi.GPIO must be greater than 0.6")
         GPIO.setwarnings(False)        # Disable GPIO warnings
+        self.filamentsensorngPlugin_confirmations_tracking = 0
 
 
     @octoprint.plugin.BlueprintPlugin.route("/status", methods=["GET"])
@@ -33,8 +35,8 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return int(self._settings.get(["pin"]))
 
     @property
-    def bounce(self):
-        return int(self._settings.get(["bounce"]))
+    def poll_time(self):
+        return int(self._settings.get(["poll_time"]))
 
     @property
     def switch(self):
@@ -79,16 +81,16 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         self._setup_sensor()
 
     def get_settings_defaults(self):
-        return dict(
-            pin     = -1,   # Default is no pin
-            bounce  = 250,  # Debounce 250ms
-            switch  = 0,    # Normally Open
-            mode    = 0,    # Board Mode
-            confirmations=0,# Confirm that we're actually out of filament
-            no_filament_gcode = '',
-            pause_print = True,
-            send_gcode_only_once = False, # Default set to False for backward compatibility
-        )
+        return({
+            'pin':-1,   # Default is no pin
+            'poll_time':250,  # Debounce 250ms
+            'switch':0,    # Normally Open
+            'mode':0,    # Board Mode
+            'confirmations':5,# Confirm that we're actually out of filament
+            'no_filament_gcode':'',
+            'pause_print':True,
+            'send_gcode_only_once': False, # Default set to False for backward compatibility
+        })
 
     def on_settings_save(self, data):
         octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
@@ -124,7 +126,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                 GPIO.add_event_detect(
                     self.pin, GPIO.BOTH,
                     callback=self.sensor_callback,
-                    bouncetime=self.bounce
+                    bouncetime=self.poll_time
                 )
         # Disable sensor
         elif event in (
@@ -135,6 +137,13 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         ):
             self._logger.info("%s: Disabling filament sensor." % (event))
             GPIO.remove_event_detect(self.pin)
+
+    @octoprint.plugin.BlueprintPlugin.route("/status", methods=["GET"])
+	def check_status(self):
+		status = "-1"
+		if self.pin != -1:
+			status = str(self.no_filament())
+		return jsonify( status = status )
 
     def sensor_callback(self, _):
         sleep(self.bounce/1000)
@@ -162,32 +171,32 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                 self._logger.info("Sending out of filament GCODE")
                 self._printer.commands(self.no_filament_gcode)
         else:
-            self._logger.info("Filament detected!")
+            self.filamentsensorngPlugin_confirmations_tracking = 0
 
 
     def get_update_information(self):
         return dict(
             octoprint_filament=dict(
-                displayName="Filament Sensor Reloaded",
+                displayName="Filament Sensor NG",
                 displayVersion=self._plugin_version,
 
                 # version check: github repository
                 type="github_release",
-                user="kontakt",
-                repo="Octoprint-Filament-Reloaded",
+                user="Red-M",
+                repo="Octoprint-Filament-Sensor-ng",
                 current=self._plugin_version,
 
                 # update method: pip
-                pip="https://github.com/kontakt/Octoprint-Filament-Reloaded/archive/{target_version}.zip"
+                pip="https://github.com/Red-M/Octoprint-Filament-Sensor-ng/archive/{target_version}.zip"
             )
         )
 
-__plugin_name__ = "Filament Sensor Reloaded"
+__plugin_name__ = "Filament Sensor NG"
 __plugin_version__ = "1.0.2"
 
 def __plugin_load__():
     global __plugin_implementation__
-    __plugin_implementation__ = FilamentReloadedPlugin()
+    __plugin_implementation__ = filamentsensorngPlugin()
 
     global __plugin_hooks__
     __plugin_hooks__ = {
