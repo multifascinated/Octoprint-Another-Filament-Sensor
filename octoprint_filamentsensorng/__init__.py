@@ -146,30 +146,20 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return jsonify( status = status )
 
     def sensor_callback(self, _):
-        sleep(self.bounce/1000)
-
-        # If we have previously triggered a state change we are still out 
-        # of filament. Log it and wait on a print resume or a new print job.
-        if self.sensor_triggered():
-            self._logger.info("Sensor callback but no trigger state change.")
-            return
-
-        # Set the triggered flag to check next callback
-        self.triggered = 1
-
+        sleep(self.poll_time/1000)
+        #self._logger.info('Pin: '+str(GPIO.input(self.pin)))
         if self.no_filament():
-            self._logger.info("Out of filament!")
-            if self.send_gcode_only_once:
-                self._logger.info("Sending GCODE only once...")
-            else:
-                # Need to resend GCODE (old default) so reset trigger
-                self.triggered = 0
-            if self.pause_print:
-                self._logger.info("Pausing print.")
-                self._printer.pause_print()
-            if self.no_filament_gcode:
-                self._logger.info("Sending out of filament GCODE")
-                self._printer.commands(self.no_filament_gcode)
+            self.filamentsensorngPlugin_confirmations_tracking+=1
+            self._logger.info('Confirmations: '+str(self.filamentsensorngPlugin_confirmations_tracking))
+            if self.confirmations<=self.filamentsensorngPlugin_confirmations_tracking:
+                self._logger.info("Out of filament!")
+                if self.pause_print:
+                    self._logger.info("Pausing print.")
+                    self._printer.pause_print()
+                if self.no_filament_gcode:
+                    self._logger.info("Sending out of filament GCODE")
+                    self._printer.commands(self.no_filament_gcode)
+                self.filamentsensorngPlugin_confirmations_tracking = 0
         else:
             self.filamentsensorngPlugin_confirmations_tracking = 0
 
