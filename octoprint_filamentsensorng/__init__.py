@@ -8,7 +8,7 @@ from time import sleep
 from flask import jsonify
 
 
-class FilamentReloadedPlugin(octoprint.plugin.StartupPlugin,
+class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                              octoprint.plugin.EventHandlerPlugin,
                              octoprint.plugin.TemplatePlugin,
                              octoprint.plugin.SettingsPlugin,
@@ -45,6 +45,10 @@ class FilamentReloadedPlugin(octoprint.plugin.StartupPlugin,
         return int(self._settings.get(["mode"]))
 
     @property
+    def confirmations(self):
+        return int(self._settings.get(["confirmations"]))
+
+    @property
     def no_filament_gcode(self):
         return str(self._settings.get(["no_filament_gcode"])).splitlines()
 
@@ -71,7 +75,7 @@ class FilamentReloadedPlugin(octoprint.plugin.StartupPlugin,
             self._logger.info("Pin not configured, won't work unless configured!")
 
     def on_after_startup(self):
-        self._logger.info("Filament Sensor Reloaded started")
+        self._logger.info("FilamentSensor-ng started")
         self._setup_sensor()
 
     def get_settings_defaults(self):
@@ -80,6 +84,7 @@ class FilamentReloadedPlugin(octoprint.plugin.StartupPlugin,
             bounce  = 250,  # Debounce 250ms
             switch  = 0,    # Normally Open
             mode    = 0,    # Board Mode
+            confirmations=0,# Confirm that we're actually out of filament
             no_filament_gcode = '',
             pause_print = True,
             send_gcode_only_once = False, # Default set to False for backward compatibility
