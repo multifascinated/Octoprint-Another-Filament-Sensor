@@ -51,6 +51,10 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return int(self._settings.get(["confirmations"]))
 
     @property
+    def debug_mode(self):
+        return int(self._settings.get(["debug_mode"]))
+
+    @property
     def no_filament_gcode(self):
         return str(self._settings.get(["no_filament_gcode"])).splitlines()
 
@@ -91,6 +95,10 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
             'pause_print':True,
             'send_gcode_only_once': False, # Default set to False for backward compatibility
         })
+    
+    def debug_only_output(self, string):
+        if self.debug_mode():
+            self._logger.info(string)
 
     def on_settings_save(self, data):
         octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
@@ -147,10 +155,10 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
 
     def sensor_callback(self, _):
         sleep(self.poll_time/1000)
-        #self._logger.info('Pin: '+str(GPIO.input(self.pin)))
+        self.debug_only_output('Pin: '+str(GPIO.input(self.pin)))
         if self.no_filament():
             self.filamentsensorngPlugin_confirmations_tracking+=1
-            self._logger.info('Confirmations: '+str(self.filamentsensorngPlugin_confirmations_tracking))
+            self.debug_only_output('Confirmations: '+str(self.filamentsensorngPlugin_confirmations_tracking))
             if self.confirmations<=self.filamentsensorngPlugin_confirmations_tracking:
                 self._logger.info("Out of filament!")
                 if self.pause_print:
