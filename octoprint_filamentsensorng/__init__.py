@@ -20,7 +20,6 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         if GPIO.VERSION < "0.6":       # Need at least 0.6 for edge detection
             raise Exception("RPi.GPIO must be greater than 0.6")
         GPIO.setwarnings(False)        # Disable GPIO warnings
-        self.filamentsensorngPlugin_confirmations_tracking = 0
 
 
     @octoprint.plugin.BlueprintPlugin.route("/status", methods=["GET"])
@@ -35,8 +34,8 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return int(self._settings.get(["pin"]))
 
     @property
-    def poll_time(self):
-        return int(self._settings.get(["poll_time"]))
+    def debounce_period(self):
+        return int(self._settings.get(["debounce_period"]))
 
     @property
     def switch(self):
@@ -87,7 +86,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
     def get_settings_defaults(self):
         return({
             'pin':-1,   # Default is no pin
-            'poll_time':250,  # Debounce 250ms
+            'debounce_period':250,  # Debounce 250ms
             'switch':0,    # Normally Open
             'mode':0,    # Board Mode
             'confirmations':5,# Confirm that we're actually out of filament
@@ -113,6 +112,9 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
 
     def no_filament(self):
         return GPIO.input(self.pin) != self.switch
+    
+    def has_filament(self):
+        return !self.no_filament()
 
     def get_template_configs(self):
         return [dict(type="settings", custom_bindings=False)]
@@ -135,7 +137,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                 GPIO.add_event_detect(
                     self.pin, GPIO.BOTH,
                     callback=self.sensor_callback,
-                    bouncetime=self.poll_time
+                    bouncetime=self.debounce_period
                 )
         # Disable sensor
         elif event in (
@@ -155,22 +157,17 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return jsonify( status = status )
 
     def sensor_callback(self, _):
-        sleep(self.poll_time/1000)
+        self.debug_only_output('sensor callback triggered')
+        sleep(self.debounce_period/1000)
         self.debug_only_output('Pin: '+str(GPIO.input(self.pin)))
-        if self.no_filament():
-            self.filamentsensorngPlugin_confirmations_tracking+=1
-            self.debug_only_output('Confirmations: '+str(self.filamentsensorngPlugin_confirmations_tracking))
-            if self.confirmations<=self.filamentsensorngPlugin_confirmations_tracking:
-                self._logger.info("Out of filament!")
-                if self.pause_print:
-                    self._logger.info("Pausing print.")
-                    self._printer.pause_print()
-                if self.no_filament_gcode:
-                    self._logger.info("Sending out of filament GCODE")
-                    self._printer.commands(self.no_filament_gcode)
-                self.filamentsensorngPlugin_confirmations_tracking = 0
-        else:
-            self.filamentsensorngPlugin_confirmations_tracking = 0
+        if self.has_filament(): return
+        self._logger.info("Out of filament!")
+        if self.pause_print:
+            self._logger.info("Pausing print.")
+            self._printer.pause_print()
+        if self.no_filament_gcode:
+            self._logger.info("Sending out of filament GCODE")
+            self._printer.commands(self.no_filament_gcode)
 
 
     def get_update_information(self):
