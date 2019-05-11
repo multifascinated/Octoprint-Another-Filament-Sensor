@@ -9,6 +9,7 @@ from time import sleep
 from flask import jsonify
 
 
+
 class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                              octoprint.plugin.EventHandlerPlugin,
                              octoprint.plugin.TemplatePlugin,
@@ -46,10 +47,6 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return int(self._settings.get(["mode"]))
 
     @property
-    def confirmations(self):
-        return int(self._settings.get(["confirmations"]))
-
-    @property
     def debug_mode(self):
         return int(self._settings.get(["debug_mode"]))
 
@@ -60,6 +57,14 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
     @property
     def pause_print(self):
         return self._settings.get_boolean(["pause_print"])
+    
+    def _set_board_mode(self):
+        if self.mode == 0:
+            self._logger.info("Using Board Mode")
+            GPIO.setmode(GPIO.BOARD)
+        else:
+            self._logger.info("Using BCM Mode")
+            GPIO.setmode(GPIO.BCM)
 
     @property
     def send_gcode_only_once(self):
@@ -68,12 +73,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
     def _setup_sensor(self):
         if self.sensor_enabled():
             self._logger.info("Setting up sensor.")
-            if self.mode == 0:
-                self._logger.info("Using Board Mode")
-                GPIO.setmode(GPIO.BOARD)
-            else:
-                self._logger.info("Using BCM Mode")
-                GPIO.setmode(GPIO.BCM)
+            self._set_board_mode()
             self._logger.info("Filament Sensor active on GPIO Pin [%s]"%self.pin)
             GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         else:
@@ -86,10 +86,9 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
     def get_settings_defaults(self):
         return({
             'pin':-1,   # Default is no pin
-            'debounce_period':250,  # Debounce 250ms
+            'debounce_period':5,  # Debounce 5 seconds
             'switch':0,    # Normally Open
             'mode':0,    # Board Mode
-            'confirmations':5,# Confirm that we're actually out of filament
             'no_filament_gcode':'',
             'debug_mode':0, # Debug off!
             'pause_print':True,
@@ -158,7 +157,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
 
     def sensor_callback(self, _):
         self.debug_only_output('sensor callback triggered')
-        sleep(self.debounce_period/1000)
+        sleep(self.debounce_period * 1000)
         self.debug_only_output('Pin: '+str(GPIO.input(self.pin)))
         if self.has_filament(): return
         self._logger.info("Out of filament!")
@@ -188,7 +187,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         )
 
 __plugin_name__ = "Filament Sensor NG"
-__plugin_version__ = "1.0.2"
+__plugin_version__ = "999.0.2"
 
 def __plugin_load__():
     global __plugin_implementation__
