@@ -113,7 +113,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return GPIO.input(self.pin) != self.switch
     
     def has_filament(self):
-        return not self.no_filament()
+        return GPIO.input(self.pin) == self.switch
 
     def get_template_configs(self):
         return [dict(type="settings", custom_bindings=False)]
