@@ -6,6 +6,7 @@ import octoprint.plugin
 from octoprint.events import Events
 import RPi.GPIO as GPIO
 from time import sleep
+from time import time
 from flask import jsonify
 
 
@@ -15,6 +16,8 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                              octoprint.plugin.TemplatePlugin,
                              octoprint.plugin.SettingsPlugin,
                              octoprint.plugin.BlueprintPlugin):
+
+    last_callback_time = 0
 
     def initialize(self):
         self._logger.info("Running RPi.GPIO version '{0}'".format(GPIO.VERSION))
@@ -35,8 +38,12 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         return int(self._settings.get(["pin"]))
 
     @property
-    def debounce_period(self):
-        return int(self._settings.get(["debounce_period"]))
+    def switch_debounce_period(self):
+        return int(self._settings.get(["switch_debounce_period"]))
+
+    @property
+    def state_debounce_period(self):
+        return int(self._settings.get(["state_debounce_period"]))
 
     @property
     def switch(self):
@@ -86,7 +93,8 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
     def get_settings_defaults(self):
         return({
             'pin':-1,   # Default is no pin
-            'debounce_period':5,  # Debounce 5 seconds
+            'switch_debounce_period': 200,  # Debounce 200ms
+            'state_debounce_period': 5,  # Debounce 5 seconds
             'switch':0,    # Normally Open
             'mode':0,    # Board Mode
             'no_filament_gcode':'',
@@ -136,7 +144,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                 GPIO.add_event_detect(
                     self.pin, GPIO.BOTH,
                     callback=self.sensor_callback,
-                    bouncetime=self.debounce_period
+                    bouncetime=self.switch_debounce_period
                 )
         # Disable sensor
         elif event in (
@@ -150,15 +158,17 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/status", methods=["GET"])
     def check_status(self):
-        status = "-1"
-        if self.pin != -1:
-            status = str(self.no_filament())
-        return jsonify( status = status )
+        self._logger.info("Checking status")
+        has_filament = self.pin != -1 and self.has_filament()
+        return jsonify( has_filament = has_filament )
 
     def sensor_callback(self, _):
+        if time() - self.last_callback_time < self.state_debounce_period*2:
+          return self._logger.info("Skipping event call. Debounce period is not over.")
+        self.last_callback_time = time()
         self.debug_only_output('sensor callback triggered')
-        sleep(self.debounce_period * 1000)
-        self.debug_only_output('Pin: '+str(GPIO.input(self.pin)))
+        self.debug_only_output('State debounce pause: '+str(self.state_debounce_period))
+        sleep(self.state_debounce_period)
         if self.has_filament(): return
         self._logger.info("Out of filament!")
         if self.pause_print:

@@ -7,10 +7,17 @@
         </div>
     </div>
     <div class="control-group">
-        <label class="control-label">{{ _('Debounce Period:') }}</label>
-        <div class="controls" data-toggle="tooltip" title="{{ _('Wait this many milliseconds before actually switching modes to trigger the final action.') }}">
-            <input type="number" step="any" min="0" class="input-mini text-right" data-bind="value: settings.plugins.filamentsensorng.debounce_period">
+        <label class="control-label">{{ _('Switch Debounce Period:') }}</label>
+        <div class="controls" data-toggle="tooltip" title="{{ _('After a switch event is detected, ignore any events for the next x milliseconds') }}">
+            <input type="number" step="any" min="0" class="input-mini text-right" data-bind="value: settings.plugins.filamentsensorng.switch_debounce_period">
             <span class="add-on">ms</span>
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">{{ _('State Debounce Period:') }}</label>
+        <div class="controls" data-toggle="tooltip" title="{{ _('Wait this many seconds before actually switching modes to trigger the final action.') }}">
+            <input type="number" step="any" min="0" class="input-mini text-right" data-bind="value: settings.plugins.filamentsensorng.state_debounce_period">
+            <span class="add-on">sec</span>
         </div>
     </div>
     <div class="control-group">
