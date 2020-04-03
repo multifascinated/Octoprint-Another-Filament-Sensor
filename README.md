@@ -1,4 +1,20 @@
-# OctoPrint-FilamentReloaded
+# OctoPrint-AnotherFilamentSensor
+
+Forked off of (https://github.com/kontakt/Octoprint-Filament-Reloaded)
+
+The original version that I had made my changes on top of was also a fork off of this original
+repository.
+
+Once I found a filament sensor I liked I realized that the one issue it had was that it would
+trigger the filament runout command multiple times in quick succession (ie. it would re-trigger
+again right after I told octoprint to resume). This is annoying so I fixed it locally at one
+point. Now I aim to bring the changes to a public repo. I intend this to be its own plugin; I
+doubt it will ever get merged into the original plugin.
+
+---
+maybe I can just get the original working.. it looks like a different potential fix for that
+same problem is included there... we'll see...
+---
 
 [OctoPrint](http://octoprint.org/) plugin that integrates with a filament sensor hooked up to a Raspberry Pi GPIO pin and allows the filament spool to be changed during a print if the filament runs out.
 
